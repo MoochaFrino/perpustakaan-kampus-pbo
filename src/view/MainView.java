@@ -11,6 +11,8 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JTabbedPane;
 import javax.swing.SwingConstants;
+import javax.swing.SwingUtilities;
+import javax.swing.UIManager;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Dimension;
@@ -190,4 +192,14 @@ public class MainView extends JFrame {
     public PanelAnggota getPanelAnggota() { return panelAnggota; }
     public PanelPeminjaman getPanelPeminjaman() { return panelPeminjaman; }
     public JMenuItem getItemLogout() { return itemLogout; }
+
+    public static void main(String[] args) {
+        try {
+            UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+        } catch (Exception ignored) {
+        }
+        SwingUtilities.invokeLater(() -> {
+            new MainView().setVisible(true);
+        });
+    }
 }
