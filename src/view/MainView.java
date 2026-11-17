@@ -94,8 +94,11 @@ public class MainView extends JFrame {
         tabbedPane.setFont(new Font("SansSerif", Font.BOLD, 13));
 
         panelKoleksi = new PanelKoleksi();
+        new controller.PerpustakaanController(panelKoleksi);
         panelAnggota = new PanelAnggota();
+        new controller.AnggotaController(panelAnggota);
         panelPeminjaman = new PanelPeminjaman();
+        new controller.PeminjamanController(panelPeminjaman);
 
         tabbedPane.addTab("Beranda", buatPanelBeranda());
         tabbedPane.addTab("Data Koleksi", panelKoleksi);
