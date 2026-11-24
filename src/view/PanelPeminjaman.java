@@ -68,6 +68,7 @@ public class PanelPeminjaman extends JPanel {
         gbc.fill = GridBagConstraints.HORIZONTAL;
 
         txtIdTransaksi = new JTextField(12);
+        txtIdTransaksi.setEditable(false); // ID dibuat otomatis
         cmbAnggota = new JComboBox<>();
         cmbKoleksi = new JComboBox<>();
 
@@ -76,6 +77,9 @@ public class PanelPeminjaman extends JPanel {
 
         spnTanggalKembali = new JSpinner(new SpinnerDateModel(new Date(), null, null, Calendar.DAY_OF_MONTH));
         spnTanggalKembali.setEditor(new JSpinner.DateEditor(spnTanggalKembali, "yyyy-MM-dd"));
+
+        JPanel panelTglPinjam = buatFieldKalender(spnTanggalPinjam);
+        JPanel panelTglKembali = buatFieldKalender(spnTanggalKembali);
 
         chkDiskonDenda = new JCheckBox("Terapkan Diskon Denda (%)");
         chkDiskonDenda.setOpaque(false);
@@ -91,7 +95,7 @@ public class PanelPeminjaman extends JPanel {
         gbc.gridx = 2; gbc.weightx = 0.15;
         panelForm.add(new JLabel("Tanggal Pinjam:"), gbc);
         gbc.gridx = 3; gbc.weightx = 0.35;
-        panelForm.add(spnTanggalPinjam, gbc);
+        panelForm.add(panelTglPinjam, gbc);
 
         // Baris 1
         gbc.gridx = 0; gbc.gridy = 1; gbc.weightx = 0.15;
@@ -108,7 +112,7 @@ public class PanelPeminjaman extends JPanel {
         gbc.gridx = 0; gbc.gridy = 2; gbc.weightx = 0.15;
         panelForm.add(new JLabel("Tanggal Kembali:"), gbc);
         gbc.gridx = 1; gbc.weightx = 0.35;
-        panelForm.add(spnTanggalKembali, gbc);
+        panelForm.add(panelTglKembali, gbc);
 
         JPanel panelDiskon = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
         panelDiskon.setOpaque(false);
@@ -178,6 +182,28 @@ public class PanelPeminjaman extends JPanel {
         add(panelTabelWrapper, BorderLayout.CENTER);
     }
 
+    private JPanel buatFieldKalender(JSpinner spinner) {
+        JPanel wrapper = new JPanel(new BorderLayout(4, 0));
+        wrapper.setOpaque(false);
+
+        // Kunci ketik manual agar tanggal selalu dipilih valid dari kalender / panah spinner
+        if (spinner.getEditor() instanceof JSpinner.DefaultEditor) {
+            ((JSpinner.DefaultEditor) spinner.getEditor()).getTextField().setEditable(false);
+        }
+
+        JButton btnKalender = new JButton("Kalender", DatePickerDialog.buatIkonKalender());
+        btnKalender.setBackground(new Color(25, 55, 109));
+        btnKalender.setForeground(Color.WHITE);
+        btnKalender.setFocusPainted(false);
+        btnKalender.setFont(new Font("SansSerif", Font.BOLD, 11));
+        btnKalender.setToolTipText("Klik untuk memilih tanggal dari kalender");
+        btnKalender.addActionListener(e -> DatePickerDialog.bukaUntukSpinner(this, spinner, btnKalender));
+
+        wrapper.add(spinner, BorderLayout.CENTER);
+        wrapper.add(btnKalender, BorderLayout.EAST);
+        return wrapper;
+    }
+
     private JButton buatTombol(String teks, Color bg, Color fg) {
         JButton btn = new JButton(teks);
         btn.setBackground(bg);
@@ -189,11 +215,11 @@ public class PanelPeminjaman extends JPanel {
 
     private void pasangEventViewLokal() {
         chkDiskonDenda.addActionListener(e -> spnPersenDiskon.setEnabled(chkDiskonDenda.isSelected()));
-        btnReset.addActionListener(e -> bersihkanForm());
     }
 
     public void bersihkanForm() {
         txtIdTransaksi.setText("");
+        txtIdTransaksi.setEditable(false);
         spnTanggalPinjam.setValue(new Date());
         spnTanggalKembali.setValue(new Date());
         chkDiskonDenda.setSelected(false);

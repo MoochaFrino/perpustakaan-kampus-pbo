@@ -31,18 +31,30 @@ public class PeminjamanController {
 
         inisialisasiEvent();
         resetTampilanDropdown();
-        muatDataTabel(); 
+        muatDataTabel();
+        tampilkanIdBerikutnya();
+    }
+
+    private void tampilkanIdBerikutnya() {
+        try {
+            view.getTxtIdTransaksi().setText(String.valueOf(peminjamanDAO.idBerikutnya()));
+            view.getTxtIdTransaksi().setEditable(false);
+        } catch (SQLException ex) {
+            view.getTxtIdTransaksi().setText("");
+        }
     }
 
     private void inisialisasiEvent() {
         view.getBtnPinjam().addActionListener(e -> prosesPinjam());
         view.getBtnKembalikan().addActionListener(e -> prosesPengembalian());
         view.getBtnHapusTrx().addActionListener(e -> hapusTransaksi());
-        
+        view.getBtnCari().addActionListener(e -> cariTransaksi());
+        view.getCmbFilterStatus().addActionListener(e -> cariTransaksi());
+
         view.getBtnReset().addActionListener(e -> {
             view.bersihkanForm();
-            view.getTxtIdTransaksi().setEditable(true);
             resetTampilanDropdown();
+            tampilkanIdBerikutnya();
         });
 
         view.getCmbAnggota().addPopupMenuListener(new PopupMenuListener() {
@@ -61,8 +73,8 @@ public class PeminjamanController {
             int baris = view.getTabelTransaksi().getSelectedRow();
             if (baris != -1 && !e.getValueIsAdjusting()) {
                 view.getTxtIdTransaksi().setText(view.getModelTabel().getValueAt(baris, 0).toString());
-                view.getTxtIdTransaksi().setEditable(false); // Kunci ID
-                
+                view.getTxtIdTransaksi().setEditable(false);
+
                 try {
                     String tglStr = view.getModelTabel().getValueAt(baris, 4).toString();
                     Date tgl = new java.text.SimpleDateFormat("yyyy-MM-dd").parse(tglStr);
@@ -77,7 +89,7 @@ public class PeminjamanController {
             }
         });
     }
-    
+
     private void aturDropdownSementara(JComboBox<String> cmb, String kataKunci) {
         boolean ketemu = false;
         for (int i = 0; i < cmb.getItemCount(); i++) {
@@ -101,15 +113,28 @@ public class PeminjamanController {
     }
 
     public void muatDataTabel() {
-        DefaultTableModel model = view.getModelTabel();
-        model.setRowCount(0); 
         try {
-            List<Object[]> listTrx = peminjamanDAO.ambilSemuaPeminjaman();
-            for (Object[] baris : listTrx) {
-                model.addRow(baris);
-            }
+            tampilkanKeTabel(peminjamanDAO.ambilSemuaPeminjaman());
         } catch (SQLException e) {
             view.tampilkanPesanError("Gagal memuat tabel transaksi: " + e.getMessage());
+        }
+    }
+
+    private void cariTransaksi() {
+        try {
+            String kataKunci = view.getTxtCariTransaksi().getText();
+            String status = view.getCmbFilterStatus().getSelectedItem().toString();
+            tampilkanKeTabel(peminjamanDAO.cariPeminjaman(kataKunci, status));
+        } catch (SQLException e) {
+            view.tampilkanPesanError("Gagal mencari transaksi: " + e.getMessage());
+        }
+    }
+
+    private void tampilkanKeTabel(List<Object[]> listTrx) {
+        DefaultTableModel model = view.getModelTabel();
+        model.setRowCount(0);
+        for (Object[] baris : listTrx) {
+            model.addRow(baris);
         }
     }
 
@@ -122,7 +147,7 @@ public class PeminjamanController {
             List<Object[]> listAnggota = anggotaDAO.ambilSemuaAnggota();
             for (Object[] a : listAnggota) {
                 if ("Aktif".equals(a[6].toString())) {
-                    view.getCmbAnggota().addItem(a[0] + " - " + a[2]); 
+                    view.getCmbAnggota().addItem(a[0] + " - " + a[2]);
                 }
             }
             if (terpilih != null && !terpilih.toString().startsWith("[Riwayat]")) {
@@ -142,7 +167,7 @@ public class PeminjamanController {
             List<Koleksi> listKoleksi = koleksiDAO.ambilSemuaKoleksi();
             for (Koleksi k : listKoleksi) {
                 if (k.bisaDipinjam()) {
-                    view.getCmbKoleksi().addItem(k.getId() + " - " + k.getJudul()); 
+                    view.getCmbKoleksi().addItem(k.getId() + " - " + k.getJudul() + " (Stok: " + k.getStok() + ")");
                 }
             }
             if (terpilih != null && !terpilih.toString().startsWith("[Riwayat]")) {
@@ -155,27 +180,30 @@ public class PeminjamanController {
 
     private void prosesPinjam() {
         try {
-            String idTeks = view.getTxtIdTransaksi().getText();
-            if (idTeks.isEmpty() || view.getCmbAnggota().getSelectedIndex() <= 0 || view.getCmbKoleksi().getSelectedIndex() <= 0) {
-                view.tampilkanPesanError("ID Transaksi, Anggota, dan Koleksi wajib diisi/dipilih secara benar!");
+            Object itemAnggota = view.getCmbAnggota().getSelectedItem();
+            Object itemKoleksi = view.getCmbKoleksi().getSelectedItem();
+            if (view.getCmbAnggota().getSelectedIndex() <= 0
+                    || view.getCmbKoleksi().getSelectedIndex() <= 0
+                    || itemAnggota == null || itemKoleksi == null
+                    || itemAnggota.toString().startsWith("[Riwayat]")
+                    || itemKoleksi.toString().startsWith("[Riwayat]")) {
+                view.tampilkanPesanError("Pilih Anggota aktif dan Koleksi tersedia terlebih dahulu!\n(Klik 'Bersihkan Form' jika sedang memilih baris riwayat.)");
                 return;
             }
 
-            int idTrx = Integer.parseInt(idTeks);
+            int idTrx = peminjamanDAO.idBerikutnya(); // ID Transaksi otomatis
             Date tglPinjam = (Date) view.getSpnTanggalPinjam().getValue();
-            int idAnggota = Integer.parseInt(view.getCmbAnggota().getSelectedItem().toString().split(" - ")[0]);
-            int idKoleksi = Integer.parseInt(view.getCmbKoleksi().getSelectedItem().toString().split(" - ")[0]);
+            int idAnggota = Integer.parseInt(itemAnggota.toString().split(" - ")[0].trim());
+            int idKoleksi = Integer.parseInt(itemKoleksi.toString().split(" - ")[0].trim());
 
             peminjamanDAO.pinjamKoleksi(idTrx, idAnggota, idKoleksi, tglPinjam);
-            
-            view.tampilkanPesanInfo("Peminjaman berhasil diproses!");
+
+            view.tampilkanPesanInfo("Peminjaman berhasil diproses dengan ID Transaksi " + idTrx + "!");
             view.bersihkanForm();
-            view.getTxtIdTransaksi().setEditable(true);
             resetTampilanDropdown();
             muatDataTabel();
+            tampilkanIdBerikutnya();
 
-        } catch (NumberFormatException ex) {
-            view.tampilkanPesanError("ID Transaksi harus berupa angka bulat!");
         } catch (Exception ex) {
             view.tampilkanPesanError("Gagal memproses peminjaman: " + ex.getMessage());
         }
@@ -188,13 +216,25 @@ public class PeminjamanController {
             return;
         }
 
+        String statusSaatIni = view.getModelTabel().getValueAt(baris, 8).toString();
+        if ("DIKEMBALIKAN".equalsIgnoreCase(statusSaatIni)) {
+            view.tampilkanPesanError("Transaksi ini sudah berstatus DIKEMBALIKAN!");
+            return;
+        }
+
         try {
             int idTrx = (int) view.getModelTabel().getValueAt(baris, 0);
             String jenis = view.getModelTabel().getValueAt(baris, 3).toString();
+            LocalDate tglPinjamLocal = LocalDate.parse(view.getModelTabel().getValueAt(baris, 4).toString());
             LocalDate tglJatuhTempo = LocalDate.parse(view.getModelTabel().getValueAt(baris, 5).toString());
-            
+
             Date tglKembali = (Date) view.getSpnTanggalKembali().getValue();
             LocalDate tglKembaliLocal = tglKembali.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+
+            if (tglKembaliLocal.isBefore(tglPinjamLocal)) {
+                view.tampilkanPesanError("Tanggal kembali tidak boleh sebelum tanggal pinjam (" + tglPinjamLocal + ")!");
+                return;
+            }
 
             long hariTerlambat = ChronoUnit.DAYS.between(tglJatuhTempo, tglKembaliLocal);
             double denda = 0;
@@ -209,16 +249,16 @@ public class PeminjamanController {
                 }
             }
 
-            peminjamanDAO.hapusTransaksi(idTrx);
-            
-            view.tampilkanPesanInfo(denda > 0 
-                ? "Buku dikembalikan!\nDenda Keterlambatan: Rp " + denda + "\nData transaksi otomatis dihapus dari sistem." 
-                : "Buku dikembalikan tepat waktu!\nData transaksi otomatis dihapus dari sistem.");
-            
+            peminjamanDAO.kembalikanKoleksi(idTrx, tglKembali, denda);
+
+            view.tampilkanPesanInfo(denda > 0
+                ? "Koleksi berhasil dikembalikan!\nDenda Keterlambatan: Rp " + String.format("%,.0f", denda) + "\nStatus diperbarui dan tersimpan di tabel riwayat."
+                : "Koleksi dikembalikan tepat waktu!\nStatus diperbarui dan tersimpan di tabel riwayat.");
+
             view.bersihkanForm();
-            view.getTxtIdTransaksi().setEditable(true);
             resetTampilanDropdown();
             muatDataTabel();
+            tampilkanIdBerikutnya();
 
         } catch (Exception ex) {
             view.tampilkanPesanError("Gagal memproses pengembalian: " + ex.getMessage());
@@ -228,7 +268,7 @@ public class PeminjamanController {
     private void hapusTransaksi() {
         int baris = view.getTabelTransaksi().getSelectedRow();
         if (baris == -1) {
-            view.tampilkanPesanError("Pilih transaksi di tabel terlebih dahulu!");
+            view.tampilkanPesanError("Pilih riwayat transaksi di tabel terlebih dahulu yang ingin dihapus!");
             return;
         }
 
@@ -236,12 +276,12 @@ public class PeminjamanController {
         if (view.konfirmasiHapus(String.valueOf(idTrx))) {
             try {
                 peminjamanDAO.hapusTransaksi(idTrx);
-                view.tampilkanPesanInfo("Data transaksi berhasil dihapus dari sistem.");
-                
+                view.tampilkanPesanInfo("Riwayat transaksi [" + idTrx + "] berhasil dihapus.");
+
                 view.bersihkanForm();
-                view.getTxtIdTransaksi().setEditable(true);
                 resetTampilanDropdown();
                 muatDataTabel();
+                tampilkanIdBerikutnya();
             } catch (SQLException ex) {
                 view.tampilkanPesanError("Gagal menghapus dari database: " + ex.getMessage());
             }

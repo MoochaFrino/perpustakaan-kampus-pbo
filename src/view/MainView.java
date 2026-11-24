@@ -130,19 +130,28 @@ public class MainView extends JFrame {
             int totalAnggota = new dao.AnggotaDAO().ambilSemuaAnggota().size();
             java.util.List<Object[]> pinjaman = new dao.PeminjamanDAO().ambilSemuaPeminjaman();
 
-            // Denda berjalan: peminjaman yang sudah lewat jatuh tempo dan belum dikembalikan
+            // Hitung yang masih DIPINJAM dan total denda (denda tersimpan + denda berjalan)
+            int sedangDipinjam = 0;
             double denda = 0;
             java.time.LocalDate hariIni = java.time.LocalDate.now();
             for (Object[] baris : pinjaman) {
-                String jenis = baris[3].toString();
-                java.time.LocalDate jatuhTempo = java.time.LocalDate.parse(baris[5].toString());
-                long telat = java.time.temporal.ChronoUnit.DAYS.between(jatuhTempo, hariIni);
-                if (telat > 0) {
-                    denda += "Skripsi".equalsIgnoreCase(jenis) ? 10000 + telat * 5000 : telat * 2000;
+                String status = baris[8].toString();
+                if ("DIPINJAM".equalsIgnoreCase(status)) {
+                    sedangDipinjam++;
+                    String jenis = baris[3].toString();
+                    java.time.LocalDate jatuhTempo = java.time.LocalDate.parse(baris[5].toString());
+                    long telat = java.time.temporal.ChronoUnit.DAYS.between(jatuhTempo, hariIni);
+                    if (telat > 0) {
+                        denda += "Skripsi".equalsIgnoreCase(jenis) ? 10000 + telat * 5000 : telat * 2000;
+                    }
+                } else {
+                    try {
+                        denda += Double.parseDouble(baris[7].toString());
+                    } catch (NumberFormatException ignored) {}
                 }
             }
 
-            perbaruiStatistik(totalKoleksi, totalAnggota, pinjaman.size(),
+            perbaruiStatistik(totalKoleksi, totalAnggota, sedangDipinjam,
                     String.format("Rp %,.0f", denda));
         } catch (java.sql.SQLException ex) {
             tampilkanPesan("Gagal memuat statistik beranda: " + ex.getMessage());

@@ -205,7 +205,6 @@ public class PanelKoleksi extends JPanel {
 
     private void pasangEventViewLokal() {
         cmbJenisKoleksi.addActionListener(e -> sesuaikanLabelAtributKhusus());
-        btnReset.addActionListener(e -> bersihkanForm());
     }
 
     private void sesuaikanLabelAtributKhusus() {
@@ -219,7 +218,7 @@ public class PanelKoleksi extends JPanel {
             lblAtributKhusus2.setText("Volume / Edisi:");
             spnAtributKhusus2.setValue(1);
         } else {
-            lblAtributKhusus1.setText("Program Studi:");
+            lblAtributKhusus1.setText("Dosen Pembimbing:");
             lblAtributKhusus2.setText("Tahun Wisuda:");
             spnAtributKhusus2.setValue(Year.now().getValue());
         }

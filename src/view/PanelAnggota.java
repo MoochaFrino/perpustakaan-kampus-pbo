@@ -182,11 +182,12 @@ public class PanelAnggota extends JPanel {
     }
 
     private void pasangEventViewLokal() {
-        btnReset.addActionListener(e -> bersihkanForm());
+        // Bersihkan input tanpa menghapus txtIdAnggota karena AnggotaController
+        // mengisi ID otomatis lebih dulu (urutan LIFO ActionListener Swing)
+        btnReset.addActionListener(e -> bersihkanInputSelainId());
     }
 
-    public void bersihkanForm() {
-        txtIdAnggota.setText("");
+    private void bersihkanInputSelainId() {
         txtIdAnggota.setEditable(false);
         txtNimNip.setText("");
         txtNama.setText("");
@@ -195,6 +196,11 @@ public class PanelAnggota extends JPanel {
         rbLakiLaki.setSelected(true);
         chkStatusAktif.setSelected(true);
         tabelAnggota.clearSelection();
+    }
+
+    public void bersihkanForm() {
+        txtIdAnggota.setText("");
+        bersihkanInputSelainId();
     }
 
     public boolean konfirmasiHapus(String idAnggota, String nama) {
