@@ -126,37 +126,48 @@ public class MainView extends JFrame {
     }
 
     private void muatStatistikBeranda() {
-        try {
-            int totalKoleksi = new dao.KoleksiDAO().ambilSemuaKoleksi().size();
-            int totalAnggota = new dao.AnggotaDAO().ambilSemuaAnggota().size();
-            java.util.List<Object[]> pinjaman = new dao.PeminjamanDAO().ambilSemuaPeminjaman();
+        new javax.swing.SwingWorker<Object[], Void>() {
+            @Override
+            protected Object[] doInBackground() throws Exception {
+                int totalKoleksi = new dao.KoleksiDAO().ambilSemuaKoleksi().size();
+                int totalAnggota = new dao.AnggotaDAO().ambilSemuaAnggota().size();
+                java.util.List<Object[]> pinjaman = new dao.PeminjamanDAO().ambilSemuaPeminjaman();
 
-            // Hitung yang masih DIPINJAM dan total denda (denda tersimpan + denda berjalan)
-            int sedangDipinjam = 0;
-            double denda = 0;
-            java.time.LocalDate hariIni = java.time.LocalDate.now();
-            for (Object[] baris : pinjaman) {
-                String status = baris[8].toString();
-                if ("DIPINJAM".equalsIgnoreCase(status)) {
-                    sedangDipinjam++;
-                    String jenis = baris[3].toString();
-                    java.time.LocalDate jatuhTempo = java.time.LocalDate.parse(baris[5].toString());
-                    long telat = java.time.temporal.ChronoUnit.DAYS.between(jatuhTempo, hariIni);
-                    if (telat > 0) {
-                        denda += "Skripsi".equalsIgnoreCase(jenis) ? 10000 + telat * 5000 : telat * 2000;
+                // Hitung yang masih DIPINJAM dan total denda (denda tersimpan + denda berjalan)
+                int sedangDipinjam = 0;
+                double denda = 0;
+                java.time.LocalDate hariIni = java.time.LocalDate.now();
+                for (Object[] baris : pinjaman) {
+                    String status = baris[8].toString();
+                    if ("DIPINJAM".equalsIgnoreCase(status)) {
+                        sedangDipinjam++;
+                        String jenis = baris[3].toString();
+                        java.time.LocalDate jatuhTempo = java.time.LocalDate.parse(baris[5].toString());
+                        long telat = java.time.temporal.ChronoUnit.DAYS.between(jatuhTempo, hariIni);
+                        if (telat > 0) {
+                            denda += "Skripsi".equalsIgnoreCase(jenis) ? 10000 + telat * 5000 : telat * 2000;
+                        }
+                    } else {
+                        try {
+                            denda += Double.parseDouble(baris[7].toString());
+                        } catch (NumberFormatException ignored) {}
                     }
-                } else {
-                    try {
-                        denda += Double.parseDouble(baris[7].toString());
-                    } catch (NumberFormatException ignored) {}
                 }
+
+                return new Object[]{totalKoleksi, totalAnggota, sedangDipinjam, String.format("Rp %,.0f", denda)};
             }
 
-            perbaruiStatistik(totalKoleksi, totalAnggota, sedangDipinjam,
-                    String.format("Rp %,.0f", denda));
-        } catch (java.sql.SQLException ex) {
-            tampilkanPesan("Gagal memuat statistik beranda: " + ex.getMessage());
-        }
+            @Override
+            protected void done() {
+                try {
+                    Object[] hasil = get();
+                    perbaruiStatistik((int) hasil[0], (int) hasil[1], (int) hasil[2], (String) hasil[3]);
+                } catch (Exception ex) {
+                    Throwable cause = (ex.getCause() != null) ? ex.getCause() : ex;
+                    tampilkanPesan("Gagal memuat statistik beranda: " + cause.getMessage());
+                }
+            }
+        }.execute();
     }
 
     private JPanel buatPanelBeranda() {
