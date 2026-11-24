@@ -61,6 +61,7 @@ public class MainView extends JFrame {
 
         JMenu menuSesi = new JMenu("Akun");
         itemLogout = new JMenuItem("Logout");
+        itemLogout.addActionListener(e -> prosesLogout());
         JMenuItem itemKeluar = new JMenuItem("Keluar Aplikasi");
         itemKeluar.addActionListener(e -> System.exit(0));
 
@@ -225,6 +226,21 @@ public class MainView extends JFrame {
 
     public void pindahTab(int index) {
         tabbedPane.setSelectedIndex(index);
+    }
+
+    private void prosesLogout() {
+        int konfirmasi = JOptionPane.showConfirmDialog(
+                this,
+                "Yakin ingin logout dan kembali ke halaman login?",
+                "Konfirmasi Logout",
+                JOptionPane.YES_NO_OPTION,
+                JOptionPane.QUESTION_MESSAGE);
+        if (konfirmasi == JOptionPane.YES_OPTION) {
+            dispose();
+            LoginView layarLogin = new LoginView();
+            new controller.LoginController(layarLogin);
+            layarLogin.setVisible(true);
+        }
     }
 
     public void perbaruiStatistik(int totalKoleksi, int totalAnggota, int totalDipinjam, String totalDenda) {
