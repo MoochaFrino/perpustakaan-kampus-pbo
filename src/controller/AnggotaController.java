@@ -20,19 +20,28 @@ public class AnggotaController {
         
         inisialisasiEvent();
         muatDataTabel();
+        tampilkanIdBerikutnya();
+    }
+
+    private void tampilkanIdBerikutnya() {
+        try {
+            view.getTxtIdAnggota().setText(String.valueOf(dao.idBerikutnya()));
+        } catch (SQLException ex) {
+            view.getTxtIdAnggota().setText("");
+        }
     }
 
     private void inisialisasiEvent() {
         view.getBtnTambah().addActionListener(e -> tambahDataAnggota());
         view.getBtnUbah().addActionListener(e -> ubahDataAnggota());
         view.getBtnHapus().addActionListener(e -> hapusDataAnggota());
+        view.getBtnReset().addActionListener(e -> tampilkanIdBerikutnya());
         
         // 2. Event Klik Baris Tabel (Mengisi form secara otomatis saat tabel diklik)
         view.getTabelAnggota().getSelectionModel().addListSelectionListener(e -> {
             int baris = view.getTabelAnggota().getSelectedRow();
             if (baris != -1 && !e.getValueIsAdjusting()) {
                 view.getTxtIdAnggota().setText(view.getModelTabel().getValueAt(baris, 0).toString());
-                view.getTxtIdAnggota().setEditable(false); // Kunci ID agar tidak diubah (Primary Key)
                 
                 view.getTxtNimNip().setText(view.getModelTabel().getValueAt(baris, 1).toString());
                 view.getTxtNama().setText(view.getModelTabel().getValueAt(baris, 2).toString());
@@ -52,7 +61,7 @@ public class AnggotaController {
         });
     }
 
-    private void muatDataTabel() {
+    public void muatDataTabel() {
         DefaultTableModel model = view.getModelTabel();
         model.setRowCount(0);
         try {
@@ -67,7 +76,6 @@ public class AnggotaController {
 
     private void tambahDataAnggota() {
         try {
-            String idTeks = view.getTxtIdAnggota().getText();
             String nim = view.getTxtNimNip().getText();
             String nama = view.getTxtNama().getText();
             String prodi = view.getTxtJurusan().getText();
@@ -75,23 +83,22 @@ public class AnggotaController {
             String gender = view.getRbLakiLaki().isSelected() ? "Laki-laki" : "Perempuan";
             boolean aktif = view.getChkStatusAktif().isSelected();
 
-            if (idTeks.isEmpty() || nama.isEmpty() || nim.isEmpty()) {
-                throw new ValidasiInputException("ID, NIM, dan Nama tidak boleh kosong!");
+            if (nama.isEmpty() || nim.isEmpty()) {
+                throw new ValidasiInputException("NIM dan Nama tidak boleh kosong!");
             }
-            int id = Integer.parseInt(idTeks);
+            int id = dao.idBerikutnya(); // ID otomatis
 
             Anggota anggotaBaru = new Anggota(id, nama, nim, prodi, gender, new Date());
             anggotaBaru.setAktif(aktif);
 
             dao.tambahAnggota(anggotaBaru, kategori);
             
-            view.tampilkanPesanInfo("Data Anggota berhasil ditambahkan!");
+            view.tampilkanPesanInfo("Data Anggota berhasil ditambahkan dengan ID " + id + "!");
             view.bersihkanForm();
             muatDataTabel();
+            tampilkanIdBerikutnya();
 
-        } catch (NumberFormatException ex) {
-            view.tampilkanPesanError("ID Anggota harus berupa angka bulat!");
-        } catch (ValidasiInputException | SQLException ex) {
+        } catch (ValidasiInputException | SQLException | IllegalArgumentException ex) {
             view.tampilkanPesanError(ex.getMessage());
         }
     }
@@ -122,8 +129,9 @@ public class AnggotaController {
             view.tampilkanPesanInfo("Data Anggota berhasil diperbarui!");
             view.bersihkanForm();
             muatDataTabel();
+            tampilkanIdBerikutnya();
 
-        } catch (ValidasiInputException | SQLException ex) {
+        } catch (ValidasiInputException | SQLException | IllegalArgumentException ex) {
             view.tampilkanPesanError(ex.getMessage());
         }
     }
@@ -144,6 +152,7 @@ public class AnggotaController {
                 view.tampilkanPesanInfo("Anggota berhasil dihapus.");
                 view.bersihkanForm();
                 muatDataTabel();
+                tampilkanIdBerikutnya();
             } catch (SQLException ex) {
                 view.tampilkanPesanError("Gagal menghapus dari database: " + ex.getMessage());
             }

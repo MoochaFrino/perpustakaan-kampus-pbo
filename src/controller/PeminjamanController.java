@@ -100,7 +100,7 @@ public class PeminjamanController {
         view.getCmbKoleksi().addItem("-- Pilih Koleksi Tersedia --");
     }
 
-    private void muatDataTabel() {
+    public void muatDataTabel() {
         DefaultTableModel model = view.getModelTabel();
         model.setRowCount(0); 
         try {
@@ -141,7 +141,7 @@ public class PeminjamanController {
         try {
             List<Koleksi> listKoleksi = koleksiDAO.ambilSemuaKoleksi();
             for (Koleksi k : listKoleksi) {
-                if (k.isTersedia() && !k.isReferensi()) {
+                if (k.bisaDipinjam()) {
                     view.getCmbKoleksi().addItem(k.getId() + " - " + k.getJudul()); 
                 }
             }

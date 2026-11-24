@@ -11,6 +11,7 @@ public abstract class Koleksi implements Identifiable {
     private String pengarang;
     private int tahun;
     private Date tanggalMasuk;
+    private int stok = 1;
     private boolean tersedia = true;
     private boolean referensi;
 
@@ -32,7 +33,7 @@ public abstract class Koleksi implements Identifiable {
     }
 
     public boolean bisaDipinjam() {
-        return tersedia && !referensi;
+        return stok > 0 && !referensi;
     }
 
     @Override public int getId() { return id; }
@@ -65,13 +66,20 @@ public abstract class Koleksi implements Identifiable {
         this.tanggalMasuk = (tanggalMasuk == null) ? new Date() : tanggalMasuk;
     }
 
+    public int getStok() { return stok; }
+    public void setStok(int stok) {
+        if (stok < 0) throw new IllegalArgumentException("Stok tidak boleh negatif.");
+        this.stok = stok;
+        this.tersedia = stok > 0;
+    }
+
     public boolean isTersedia() { return tersedia; }
     public void setTersedia(boolean tersedia) { this.tersedia = tersedia; }
 
     public boolean isReferensi() { return referensi; }
     public void setReferensi(boolean referensi) { this.referensi = referensi; }
 
-    public String getStatus() { return tersedia ? "Tersedia" : "Dipinjam"; }
+    public String getStatus() { return stok > 0 ? "Tersedia" : "Dipinjam"; }
 
     @Override
     public String toString() {

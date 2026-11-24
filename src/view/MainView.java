@@ -25,6 +25,10 @@ public class MainView extends JFrame {
     private PanelAnggota panelAnggota;
     private PanelPeminjaman panelPeminjaman;
 
+    private controller.PerpustakaanController ctrlKoleksi;
+    private controller.AnggotaController ctrlAnggota;
+    private controller.PeminjamanController ctrlPeminjaman;
+
     private JLabel lblStatKoleksi;
     private JLabel lblStatAnggota;
     private JLabel lblStatDipinjam;
@@ -94,11 +98,11 @@ public class MainView extends JFrame {
         tabbedPane.setFont(new Font("SansSerif", Font.BOLD, 13));
 
         panelKoleksi = new PanelKoleksi();
-        new controller.PerpustakaanController(panelKoleksi);
+        ctrlKoleksi = new controller.PerpustakaanController(panelKoleksi);
         panelAnggota = new PanelAnggota();
-        new controller.AnggotaController(panelAnggota);
+        ctrlAnggota = new controller.AnggotaController(panelAnggota);
         panelPeminjaman = new PanelPeminjaman();
-        new controller.PeminjamanController(panelPeminjaman);
+        ctrlPeminjaman = new controller.PeminjamanController(panelPeminjaman);
 
         tabbedPane.addTab("Beranda", buatPanelBeranda());
         tabbedPane.addTab("Data Koleksi", panelKoleksi);
@@ -106,6 +110,43 @@ public class MainView extends JFrame {
         tabbedPane.addTab("Peminjaman & Pengembalian", panelPeminjaman);
 
         add(tabbedPane, BorderLayout.CENTER);
+
+        // Setiap kali tab dibuka, data tab itu dimuat ulang dari database
+        tabbedPane.addChangeListener(e -> {
+            switch (tabbedPane.getSelectedIndex()) {
+                case 0: muatStatistikBeranda(); break;
+                case 1: ctrlKoleksi.muatDataTabel(); break;
+                case 2: ctrlAnggota.muatDataTabel(); break;
+                case 3: ctrlPeminjaman.muatDataTabel(); break;
+                default: break;
+            }
+        });
+        muatStatistikBeranda();
+    }
+
+    private void muatStatistikBeranda() {
+        try {
+            int totalKoleksi = new dao.KoleksiDAO().ambilSemuaKoleksi().size();
+            int totalAnggota = new dao.AnggotaDAO().ambilSemuaAnggota().size();
+            java.util.List<Object[]> pinjaman = new dao.PeminjamanDAO().ambilSemuaPeminjaman();
+
+            // Denda berjalan: peminjaman yang sudah lewat jatuh tempo dan belum dikembalikan
+            double denda = 0;
+            java.time.LocalDate hariIni = java.time.LocalDate.now();
+            for (Object[] baris : pinjaman) {
+                String jenis = baris[3].toString();
+                java.time.LocalDate jatuhTempo = java.time.LocalDate.parse(baris[5].toString());
+                long telat = java.time.temporal.ChronoUnit.DAYS.between(jatuhTempo, hariIni);
+                if (telat > 0) {
+                    denda += "Skripsi".equalsIgnoreCase(jenis) ? 10000 + telat * 5000 : telat * 2000;
+                }
+            }
+
+            perbaruiStatistik(totalKoleksi, totalAnggota, pinjaman.size(),
+                    String.format("Rp %,.0f", denda));
+        } catch (java.sql.SQLException ex) {
+            tampilkanPesan("Gagal memuat statistik beranda: " + ex.getMessage());
+        }
     }
 
     private JPanel buatPanelBeranda() {

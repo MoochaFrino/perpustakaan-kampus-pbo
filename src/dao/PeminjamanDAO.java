@@ -10,7 +10,7 @@ public class PeminjamanDAO {
 
     public void pinjamKoleksi(int id, int idAnggota, int idKoleksi, java.util.Date tglPinjam) throws SQLException {
         String sqlInsert = "INSERT INTO peminjaman (id, id_anggota, id_koleksi, tanggal_pinjam, denda) VALUES (?, ?, ?, ?, 0)";
-        String sqlUpdateKoleksi = "UPDATE koleksi SET tersedia = false WHERE id = ?";
+        String sqlUpdateKoleksi = "UPDATE koleksi SET stok = stok - 1, tersedia = (stok - 1) > 0 WHERE id = ? AND stok > 0 AND referensi = false";
         
         try (Connection conn = KoneksiDatabase.getConnection()) {
             conn.setAutoCommit(false); 
@@ -24,7 +24,9 @@ public class PeminjamanDAO {
                 ps1.executeUpdate();
                 
                 ps2.setInt(1, idKoleksi);
-                ps2.executeUpdate();
+                if (ps2.executeUpdate() == 0) {
+                    throw new SQLException("Stok koleksi habis atau koleksi hanya untuk referensi.");
+                }
                 
                 conn.commit();
             } catch (SQLException e) {
@@ -37,7 +39,7 @@ public class PeminjamanDAO {
     }
 
     public void hapusTransaksi(int idTrx) throws SQLException {
-        String sqlUpdateKoleksi = "UPDATE koleksi SET tersedia = true WHERE id = (SELECT id_koleksi FROM peminjaman WHERE id = ?)";
+        String sqlUpdateKoleksi = "UPDATE koleksi SET stok = stok + 1, tersedia = true WHERE id = (SELECT id_koleksi FROM peminjaman WHERE id = ?)";
         String sqlDelete = "DELETE FROM peminjaman WHERE id = ?";
 
         try (Connection conn = KoneksiDatabase.getConnection()) {

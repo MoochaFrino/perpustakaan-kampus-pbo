@@ -6,9 +6,10 @@ import java.sql.SQLException;
 
 public class KoneksiDatabase {
 
-    private static final String URL = "jdbc:postgresql://aws-1-ap-northeast-1.pooler.supabase.com:5432/postgres?user=postgres.ucmgpnafgfoheegoryey&password=perpustakaanpastisukses99";
-    private static final String USER = "postgres.ucmgpnafgfoheegoryey";
-    private static final String PASSWORD = "perpustakaanpastisukses99";
+    private static final String URL =
+        "jdbc:postgresql://aws-1-ap-south-1.pooler.supabase.com:5432/postgres";
+    private static final String USER = "postgres.ishjsvczmhsysljrlhll";
+    private static final String PASSWORD = "7Ql4vMNCKaQQ3JVZ";
 
     public static Connection getConnection() throws SQLException {
         try {
