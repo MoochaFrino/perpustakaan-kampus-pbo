@@ -26,6 +26,57 @@ public class KoleksiDAO {
         }
     }
 
+    /** Membuat kolom issn di tabel koleksi bila belum ada (aman dipanggil berulang). */
+    public static void pastikanKolomIssn() {
+        String cek = "SELECT 1 FROM information_schema.columns WHERE table_name = 'koleksi' AND column_name = 'issn'";
+        try (Connection conn = KoneksiDatabase.getConnection();
+             Statement st = conn.createStatement()) {
+            boolean sudahAda;
+            try (ResultSet rs = st.executeQuery(cek)) { sudahAda = rs.next(); }
+            if (!sudahAda) {
+                st.executeUpdate("ALTER TABLE koleksi ADD COLUMN issn varchar(64)");
+            }
+        } catch (SQLException e) {
+            System.err.println("Gagal memastikan kolom issn: " + e.getMessage());
+        }
+    }
+
+    public boolean judulSudahAda(String judul, int kecualikanId) throws SQLException {
+        String sql = "SELECT 1 FROM koleksi WHERE LOWER(TRIM(judul)) = LOWER(TRIM(?)) AND id <> ? LIMIT 1";
+        try (Connection conn = KoneksiDatabase.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, judul);
+            ps.setInt(2, kecualikanId);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next();
+            }
+        }
+    }
+
+    public boolean isbnSudahAda(String isbn, int kecualikanId) throws SQLException {
+        String sql = "SELECT 1 FROM koleksi WHERE LOWER(jenis_koleksi) = 'buku' AND LOWER(TRIM(isbn_vol_prodi)) = LOWER(TRIM(?)) AND id <> ? LIMIT 1";
+        try (Connection conn = KoneksiDatabase.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, isbn);
+            ps.setInt(2, kecualikanId);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next();
+            }
+        }
+    }
+
+    public boolean issnSudahAda(String issn, int kecualikanId) throws SQLException {
+        String sql = "SELECT 1 FROM koleksi WHERE LOWER(jenis_koleksi) = 'jurnal' AND LOWER(TRIM(issn)) = LOWER(TRIM(?)) AND id <> ? LIMIT 1";
+        try (Connection conn = KoneksiDatabase.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, issn);
+            ps.setInt(2, kecualikanId);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next();
+            }
+        }
+    }
+
     public int idBerikutnya() throws SQLException {
         try (Connection conn = KoneksiDatabase.getConnection();
              Statement st = conn.createStatement();
@@ -36,7 +87,7 @@ public class KoleksiDAO {
     }
 
     public void tambahKoleksi(Koleksi k) throws SQLException {
-        String sql = "INSERT INTO koleksi (id, judul, pengarang, tahun, tanggal_masuk, jenis_koleksi, isbn_vol_prodi, tersedia, referensi, stok) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        String sql = "INSERT INTO koleksi (id, judul, pengarang, tahun, tanggal_masuk, jenis_koleksi, isbn_vol_prodi, tersedia, referensi, stok, issn) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         try (Connection conn = KoneksiDatabase.getConnection(); 
              PreparedStatement ps = conn.prepareStatement(sql)) {
              
@@ -60,6 +111,11 @@ public class KoleksiDAO {
             ps.setBoolean(8, k.isTersedia());
             ps.setBoolean(9, k.isReferensi());
             ps.setInt(10, k.getStok());
+            if (k instanceof Jurnal) {
+                ps.setString(11, ((Jurnal) k).getIssn());
+            } else {
+                ps.setNull(11, Types.VARCHAR);
+            }
             
             ps.executeUpdate();
         }
@@ -81,7 +137,7 @@ public class KoleksiDAO {
     }
 
     public void ubahKoleksi(Koleksi k) throws SQLException {
-        String sql = "UPDATE koleksi SET judul = ?, pengarang = ?, tahun = ?, jenis_koleksi = ?, isbn_vol_prodi = ?, referensi = ?, stok = ?, tersedia = ? WHERE id = ?";
+        String sql = "UPDATE koleksi SET judul = ?, pengarang = ?, tahun = ?, jenis_koleksi = ?, isbn_vol_prodi = ?, referensi = ?, stok = ?, tersedia = ?, issn = ? WHERE id = ?";
         try (Connection conn = KoneksiDatabase.getConnection(); 
              PreparedStatement ps = conn.prepareStatement(sql)) {
              
@@ -103,9 +159,14 @@ public class KoleksiDAO {
             ps.setBoolean(6, k.isReferensi());
             ps.setInt(7, k.getStok());
             ps.setBoolean(8, k.getStok() > 0);
+            if (k instanceof Jurnal) {
+                ps.setString(9, ((Jurnal) k).getIssn());
+            } else {
+                ps.setNull(9, Types.VARCHAR);
+            }
             
             // Kunci utama (WHERE id = ?)
-            ps.setInt(9, k.getId());
+            ps.setInt(10, k.getId());
             
             ps.executeUpdate();
         }
@@ -138,7 +199,8 @@ public class KoleksiDAO {
                     vol = Integer.parseInt(atributKhusus);
                 }
             } catch (Exception ignored) {}
-            obj = new Jurnal(id, judul, pengarang, tahun, tanggalMasuk, vol);
+            String issn = rs.getString("issn");
+            obj = new Jurnal(id, judul, pengarang, tahun, tanggalMasuk, vol, issn);
         } else {
             obj = new Skripsi(id, judul, pengarang, tahun, tanggalMasuk, atributKhusus);
         }

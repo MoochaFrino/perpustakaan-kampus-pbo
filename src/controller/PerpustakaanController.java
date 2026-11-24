@@ -3,22 +3,25 @@ package controller;
 import dao.KoleksiDAO;
 import exception.ValidasiInputException;
 import model.*;
-import view.PanelKoleksi; 
+import view.PanelKoleksi;
 
 import javax.swing.table.DefaultTableModel;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
 public class PerpustakaanController {
     private final PanelKoleksi view;
     private final KoleksiDAO dao;
+    private List<Koleksi> daftarKoleksiTampil = new ArrayList<>();
 
     public PerpustakaanController(PanelKoleksi view) {
         this.view = view;
         this.dao = new KoleksiDAO();
 
         KoleksiDAO.pastikanKolomStok();
+        KoleksiDAO.pastikanKolomIssn();
         inisialisasiEvent();
         muatDataTabel();
         tampilkanIdBerikutnya();
@@ -36,59 +39,83 @@ public class PerpustakaanController {
         view.getBtnTambah().addActionListener(e -> tambahDataKoleksi());
         view.getBtnUbah().addActionListener(e -> ubahDataKoleksi()); // Fitur Edit
         view.getBtnHapus().addActionListener(e -> hapusDataKoleksi());
-        view.getBtnReset().addActionListener(e -> { view.bersihkanForm(); tampilkanIdBerikutnya(); });
+        view.getBtnReset().addActionListener(e -> {
+            view.bersihkanForm();
+            tampilkanIdBerikutnya();
+        });
 
         view.getTabelKoleksi().getSelectionModel().addListSelectionListener(e -> {
             int baris = view.getTabelKoleksi().getSelectedRow();
             if (baris != -1 && !e.getValueIsAdjusting()) {
                 view.getTxtIdKoleksi().setText(view.getModelTabel().getValueAt(baris, 0).toString());
                 view.getTxtIdKoleksi().setEditable(false); // Kunci ID
-                
+
                 String jenis = view.getModelTabel().getValueAt(baris, 1).toString();
                 view.getCmbJenisKoleksi().setSelectedItem(jenis); // Ini akan otomatis mengubah label atribut khusus
-                
+
                 view.getTxtJudul().setText(view.getModelTabel().getValueAt(baris, 2).toString());
                 view.getTxtPenulis().setText(view.getModelTabel().getValueAt(baris, 3).toString());
-                view.getSpnTahunTerbit().setValue(Integer.parseInt(view.getModelTabel().getValueAt(baris, 4).toString()));
-                
+                view.getSpnTahunTerbit()
+                        .setValue(Integer.parseInt(view.getModelTabel().getValueAt(baris, 4).toString()));
+
                 view.getSpnStok().setValue(Integer.parseInt(view.getModelTabel().getValueAt(baris, 5).toString()));
-                view.getChkReferensiSaja().setSelected("Ya".equals(view.getModelTabel().getValueAt(baris, 8).toString()));
+                view.getChkReferensiSaja()
+                        .setSelected("Ya".equals(view.getModelTabel().getValueAt(baris, 8).toString()));
 
                 String atributKhusus = view.getModelTabel().getValueAt(baris, 7).toString();
-                if (jenis.equalsIgnoreCase("Buku") || jenis.equalsIgnoreCase("Skripsi")) {
+                if (baris < daftarKoleksiTampil.size()) {
+                    Koleksi k = daftarKoleksiTampil.get(baris);
+                    if (k instanceof Buku) {
+                        view.getTxtAtributKhusus1().setText(((Buku) k).getIsbn());
+                    } else if (k instanceof Jurnal) {
+                        Jurnal j = (Jurnal) k;
+                        view.getTxtAtributKhusus1().setText("-".equals(j.getIssn()) ? "" : j.getIssn());
+                        view.getSpnAtributKhusus2().setValue(j.getVolume());
+                    } else if (k instanceof Skripsi) {
+                        view.getTxtAtributKhusus1().setText(((Skripsi) k).getDosenPembimbing());
+                    }
+                } else if (jenis.equalsIgnoreCase("Buku") || jenis.equalsIgnoreCase("Skripsi")) {
                     view.getTxtAtributKhusus1().setText(atributKhusus);
                 } else if (jenis.equalsIgnoreCase("Jurnal")) {
                     try {
                         view.getSpnAtributKhusus2().setValue(Integer.parseInt(atributKhusus));
-                    } catch (Exception ex) {}
+                    } catch (Exception ex) {
+                    }
                 }
-                
+
             }
         });
     }
 
     public void muatDataTabel() {
         DefaultTableModel model = view.getModelTabel();
-        model.setRowCount(0); 
+        model.setRowCount(0);
         try {
             List<Koleksi> listKoleksi = dao.ambilSemuaKoleksi();
+            daftarKoleksiTampil = listKoleksi;
             for (Koleksi k : listKoleksi) {
                 // Konversi atribut khusus untuk ditampilkan di kolom tabel
                 String atributKhusus = "-";
-                if (k instanceof Buku) atributKhusus = ((Buku) k).getIsbn();
-                else if (k instanceof Jurnal) atributKhusus = String.valueOf(((Jurnal) k).getVolume());
-                else if (k instanceof Skripsi) atributKhusus = ((Skripsi) k).getDosenPembimbing();
+                if (k instanceof Buku)
+                    atributKhusus = ((Buku) k).getIsbn();
+                else if (k instanceof Jurnal) {
+                    Jurnal j = (Jurnal) k;
+                    atributKhusus = "-".equals(j.getIssn())
+                            ? "Vol. " + j.getVolume()
+                            : "ISSN: " + j.getIssn() + " (Vol. " + j.getVolume() + ")";
+                } else if (k instanceof Skripsi)
+                    atributKhusus = ((Skripsi) k).getDosenPembimbing();
 
-                model.addRow(new Object[]{
-                    k.getId(),
-                    k.getJenis(),
-                    k.getJudul(),
-                    k.getPengarang(),
-                    k.getTahun(),
-                    k.getStok(),
-                    k.isReferensi() ? "Referensi" : k.getStatus(),
-                    atributKhusus,
-                    k.isReferensi() ? "Ya" : "Tidak"
+                model.addRow(new Object[] {
+                        k.getId(),
+                        k.getJenis(),
+                        k.getJudul(),
+                        k.getPengarang(),
+                        k.getTahun(),
+                        k.getStok(),
+                        k.isReferensi() ? "Referensi" : k.getStatus(),
+                        atributKhusus,
+                        k.isReferensi() ? "Ya" : "Tidak"
                 });
             }
         } catch (SQLException ex) {
@@ -96,28 +123,59 @@ public class PerpustakaanController {
         }
     }
 
+    private void validasiInputKoleksi(String judul, String pengarang, String jenis, String atributKhusus1,
+            int idSaatIni)
+            throws ValidasiInputException, SQLException {
+        if (judul == null || judul.trim().isEmpty() || pengarang == null || pengarang.trim().isEmpty()) {
+            throw new ValidasiInputException("Judul dan Penulis tidak boleh kosong!");
+        }
+
+        if (dao.judulSudahAda(judul, idSaatIni)) {
+            throw new ValidasiInputException(
+                    "Judul koleksi \"" + judul.trim()
+                            + "\" sudah terdaftar! Setiap buku, jurnal, atau skripsi hanya boleh memiliki 1 judul unik.");
+        }
+
+        String nilaiKhusus1 = atributKhusus1 == null ? "" : atributKhusus1.trim();
+        if ("Buku".equalsIgnoreCase(jenis)) {
+            if (nilaiKhusus1.isEmpty() || "-".equals(nilaiKhusus1)) {
+                throw new ValidasiInputException("Nomor ISBN buku tidak boleh kosong!");
+            }
+            if (dao.isbnSudahAda(nilaiKhusus1, idSaatIni)) {
+                throw new ValidasiInputException(
+                        "Nomor ISBN \"" + nilaiKhusus1 + "\" sudah terdaftar! Setiap ISBN hanya boleh diinput 1 kali.");
+            }
+        } else if ("Jurnal".equalsIgnoreCase(jenis)) {
+            if (nilaiKhusus1.isEmpty() || "-".equals(nilaiKhusus1)) {
+                throw new ValidasiInputException("Nomor ISSN jurnal tidak boleh kosong!");
+            }
+            if (dao.issnSudahAda(nilaiKhusus1, idSaatIni)) {
+                throw new ValidasiInputException(
+                        "Nomor ISSN \"" + nilaiKhusus1 + "\" sudah terdaftar! Setiap ISSN hanya boleh diinput 1 kali.");
+            }
+        }
+    }
+
     private void tambahDataKoleksi() {
         try {
             String judul = view.getTxtJudul().getText();
-            String pengarang = view.getTxtPenulis().getText(); 
-            int tahun = (int) view.getSpnTahunTerbit().getValue(); 
+            String pengarang = view.getTxtPenulis().getText();
+            int tahun = (int) view.getSpnTahunTerbit().getValue();
             int stok = (int) view.getSpnStok().getValue();
-            String jenis = view.getCmbJenisKoleksi().getSelectedItem().toString(); 
-            String atributKhusus1 = view.getTxtAtributKhusus1().getText(); 
-            int atributKhusus2 = (int) view.getSpnAtributKhusus2().getValue(); 
+            String jenis = view.getCmbJenisKoleksi().getSelectedItem().toString();
+            String atributKhusus1 = view.getTxtAtributKhusus1().getText();
+            int atributKhusus2 = (int) view.getSpnAtributKhusus2().getValue();
 
-            if (judul.isEmpty() || pengarang.isEmpty()) {
-                throw new ValidasiInputException("Judul dan Penulis tidak boleh kosong!");
-            }
+            validasiInputKoleksi(judul, pengarang, jenis, atributKhusus1, -1);
 
             int id = dao.idBerikutnya(); // ID otomatis
             Koleksi koleksiBaru;
             if (jenis.equalsIgnoreCase("Buku")) {
                 koleksiBaru = new Buku(id, judul, pengarang, tahun, new Date(), atributKhusus1);
             } else if (jenis.equalsIgnoreCase("Jurnal")) {
-                koleksiBaru = new Jurnal(id, judul, pengarang, tahun, new Date(), atributKhusus2); 
+                koleksiBaru = new Jurnal(id, judul, pengarang, tahun, new Date(), atributKhusus2, atributKhusus1);
             } else {
-                koleksiBaru = new Skripsi(id, judul, pengarang, tahun, new Date(), atributKhusus1); 
+                koleksiBaru = new Skripsi(id, judul, pengarang, tahun, new Date(), atributKhusus1);
             }
             koleksiBaru.setStok(stok);
             koleksiBaru.setReferensi(view.getChkReferensiSaja().isSelected());
@@ -148,15 +206,13 @@ public class PerpustakaanController {
             String atributKhusus1 = view.getTxtAtributKhusus1().getText(); 
             int atributKhusus2 = (int) view.getSpnAtributKhusus2().getValue(); 
 
-            if (judul.isEmpty() || pengarang.isEmpty()) {
-                throw new ValidasiInputException("Judul dan Penulis tidak boleh kosong!");
-            }
+            validasiInputKoleksi(judul, pengarang, jenis, atributKhusus1, id);
 
             Koleksi koleksiEdit;
             if (jenis.equalsIgnoreCase("Buku")) {
                 koleksiEdit = new Buku(id, judul, pengarang, tahun, new Date(), atributKhusus1);
             } else if (jenis.equalsIgnoreCase("Jurnal")) {
-                koleksiEdit = new Jurnal(id, judul, pengarang, tahun, new Date(), atributKhusus2); 
+                koleksiEdit = new Jurnal(id, judul, pengarang, tahun, new Date(), atributKhusus2, atributKhusus1); 
             } else {
                 koleksiEdit = new Skripsi(id, judul, pengarang, tahun, new Date(), atributKhusus1); 
             }
