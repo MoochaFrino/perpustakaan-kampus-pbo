@@ -6,14 +6,20 @@ public class Jurnal extends Koleksi {
     private static final double DENDA_PER_HARI = 2000;
 
     private int volume;
+    private String issn;
 
-    public Jurnal(int id, String judul, String pengarang, int tahun, Date tanggalMasuk, int volume) {
+    public Jurnal(int id, String judul, String pengarang, int tahun, Date tanggalMasuk, int volume, String issn) {
         super(id, judul, pengarang, tahun, tanggalMasuk);
         setVolume(volume);
+        setIssn(issn);
+    }
+
+    public Jurnal(int id, String judul, String pengarang, int tahun, Date tanggalMasuk, int volume) {
+        this(id, judul, pengarang, tahun, tanggalMasuk, volume, "-");
     }
 
     public Jurnal(int id, String judul, String pengarang, int tahun, Date tanggalMasuk) {
-        this(id, judul, pengarang, tahun, tanggalMasuk, 1);
+        this(id, judul, pengarang, tahun, tanggalMasuk, 1, "-");
     }
 
     @Override public String getJenis() { return "Jurnal"; }
@@ -28,5 +34,10 @@ public class Jurnal extends Koleksi {
     public void setVolume(int volume) {
         if (volume < 1) throw new IllegalArgumentException("Volume minimal 1.");
         this.volume = volume;
+    }
+
+    public String getIssn() { return issn; }
+    public void setIssn(String issn) {
+        this.issn = (issn == null || issn.trim().isEmpty()) ? "-" : issn.trim();
     }
 }
