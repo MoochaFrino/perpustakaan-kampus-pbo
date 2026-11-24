@@ -70,6 +70,7 @@ public class PanelAnggota extends JPanel {
         gbc.fill = GridBagConstraints.HORIZONTAL;
 
         txtIdAnggota = new JTextField(12);
+        txtIdAnggota.setEditable(false); // ID dibuat otomatis
         txtNimNip = new JTextField(16);
         txtNama = new JTextField(20);
         cmbKategori = new JComboBox<>(new String[]{"Mahasiswa", "Dosen", "Staf"});
@@ -186,7 +187,7 @@ public class PanelAnggota extends JPanel {
 
     public void bersihkanForm() {
         txtIdAnggota.setText("");
-        txtIdAnggota.setEditable(true);
+        txtIdAnggota.setEditable(false);
         txtNimNip.setText("");
         txtNama.setText("");
         cmbKategori.setSelectedIndex(0);

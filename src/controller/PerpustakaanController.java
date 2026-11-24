@@ -18,15 +18,25 @@ public class PerpustakaanController {
         this.view = view;
         this.dao = new KoleksiDAO();
 
+        KoleksiDAO.pastikanKolomStok();
         inisialisasiEvent();
         muatDataTabel();
+        tampilkanIdBerikutnya();
+    }
+
+    private void tampilkanIdBerikutnya() {
+        try {
+            view.getTxtIdKoleksi().setText(String.valueOf(dao.idBerikutnya()));
+        } catch (SQLException ex) {
+            view.getTxtIdKoleksi().setText("");
+        }
     }
 
     private void inisialisasiEvent() {
         view.getBtnTambah().addActionListener(e -> tambahDataKoleksi());
         view.getBtnUbah().addActionListener(e -> ubahDataKoleksi()); // Fitur Edit
         view.getBtnHapus().addActionListener(e -> hapusDataKoleksi());
-        view.getBtnReset().addActionListener(e -> view.bersihkanForm());
+        view.getBtnReset().addActionListener(e -> { view.bersihkanForm(); tampilkanIdBerikutnya(); });
 
         view.getTabelKoleksi().getSelectionModel().addListSelectionListener(e -> {
             int baris = view.getTabelKoleksi().getSelectedRow();
@@ -41,6 +51,9 @@ public class PerpustakaanController {
                 view.getTxtPenulis().setText(view.getModelTabel().getValueAt(baris, 3).toString());
                 view.getSpnTahunTerbit().setValue(Integer.parseInt(view.getModelTabel().getValueAt(baris, 4).toString()));
                 
+                view.getSpnStok().setValue(Integer.parseInt(view.getModelTabel().getValueAt(baris, 5).toString()));
+                view.getChkReferensiSaja().setSelected("Ya".equals(view.getModelTabel().getValueAt(baris, 8).toString()));
+
                 String atributKhusus = view.getModelTabel().getValueAt(baris, 7).toString();
                 if (jenis.equalsIgnoreCase("Buku") || jenis.equalsIgnoreCase("Skripsi")) {
                     view.getTxtAtributKhusus1().setText(atributKhusus);
@@ -54,7 +67,7 @@ public class PerpustakaanController {
         });
     }
 
-    private void muatDataTabel() {
+    public void muatDataTabel() {
         DefaultTableModel model = view.getModelTabel();
         model.setRowCount(0); 
         try {
@@ -72,9 +85,10 @@ public class PerpustakaanController {
                     k.getJudul(),
                     k.getPengarang(),
                     k.getTahun(),
-                    1, // Dummy stok
-                    k.isTersedia() ? "Tersedia" : "Dipinjam",
-                    atributKhusus
+                    k.getStok(),
+                    k.isReferensi() ? "Referensi" : k.getStatus(),
+                    atributKhusus,
+                    k.isReferensi() ? "Ya" : "Tidak"
                 });
             }
         } catch (SQLException ex) {
@@ -84,19 +98,19 @@ public class PerpustakaanController {
 
     private void tambahDataKoleksi() {
         try {
-            String idTeks = view.getTxtIdKoleksi().getText();
             String judul = view.getTxtJudul().getText();
             String pengarang = view.getTxtPenulis().getText(); 
             int tahun = (int) view.getSpnTahunTerbit().getValue(); 
+            int stok = (int) view.getSpnStok().getValue();
             String jenis = view.getCmbJenisKoleksi().getSelectedItem().toString(); 
             String atributKhusus1 = view.getTxtAtributKhusus1().getText(); 
             int atributKhusus2 = (int) view.getSpnAtributKhusus2().getValue(); 
 
-            if (idTeks.isEmpty() || judul.isEmpty() || pengarang.isEmpty()) {
-                throw new ValidasiInputException("ID, Judul, dan Penulis tidak boleh kosong!");
+            if (judul.isEmpty() || pengarang.isEmpty()) {
+                throw new ValidasiInputException("Judul dan Penulis tidak boleh kosong!");
             }
 
-            int id = Integer.parseInt(idTeks);
+            int id = dao.idBerikutnya(); // ID otomatis
             Koleksi koleksiBaru;
             if (jenis.equalsIgnoreCase("Buku")) {
                 koleksiBaru = new Buku(id, judul, pengarang, tahun, new Date(), atributKhusus1);
@@ -105,16 +119,16 @@ public class PerpustakaanController {
             } else {
                 koleksiBaru = new Skripsi(id, judul, pengarang, tahun, new Date(), atributKhusus1); 
             }
+            koleksiBaru.setStok(stok);
             koleksiBaru.setReferensi(view.getChkReferensiSaja().isSelected());
 
             dao.tambahKoleksi(koleksiBaru);
-            view.tampilkanPesanInfo("Data Koleksi berhasil ditambahkan!");
+            view.tampilkanPesanInfo("Data Koleksi berhasil ditambahkan dengan ID " + id + "!");
             view.bersihkanForm();
             muatDataTabel();
+            tampilkanIdBerikutnya();
 
-        } catch (NumberFormatException ex) {
-            view.tampilkanPesanError("ID harus berupa angka!");
-        } catch (ValidasiInputException | SQLException ex) {
+        } catch (ValidasiInputException | SQLException | IllegalArgumentException ex) {
             view.tampilkanPesanError(ex.getMessage());
         }
     }
@@ -129,6 +143,7 @@ public class PerpustakaanController {
             String judul = view.getTxtJudul().getText();
             String pengarang = view.getTxtPenulis().getText(); 
             int tahun = (int) view.getSpnTahunTerbit().getValue(); 
+            int stok = (int) view.getSpnStok().getValue();
             String jenis = view.getCmbJenisKoleksi().getSelectedItem().toString(); 
             String atributKhusus1 = view.getTxtAtributKhusus1().getText(); 
             int atributKhusus2 = (int) view.getSpnAtributKhusus2().getValue(); 
@@ -145,14 +160,16 @@ public class PerpustakaanController {
             } else {
                 koleksiEdit = new Skripsi(id, judul, pengarang, tahun, new Date(), atributKhusus1); 
             }
+            koleksiEdit.setStok(stok);
             koleksiEdit.setReferensi(view.getChkReferensiSaja().isSelected());
 
             dao.ubahKoleksi(koleksiEdit);
             view.tampilkanPesanInfo("Data Koleksi berhasil diperbarui!");
             view.bersihkanForm();
             muatDataTabel();
+            tampilkanIdBerikutnya();
 
-        } catch (ValidasiInputException | SQLException ex) {
+        } catch (ValidasiInputException | SQLException | IllegalArgumentException ex) {
             view.tampilkanPesanError(ex.getMessage());
         }
     }
@@ -173,6 +190,7 @@ public class PerpustakaanController {
                 view.tampilkanPesanInfo("Koleksi berhasil dihapus.");
                 view.bersihkanForm();
                 muatDataTabel();
+                tampilkanIdBerikutnya();
             } catch (SQLException ex) {
                 view.tampilkanPesanError("Gagal menghapus dari database: " + ex.getMessage());
             }

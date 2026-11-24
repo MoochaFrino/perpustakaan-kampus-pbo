@@ -22,7 +22,7 @@ public class Peminjaman implements Identifiable {
         this.koleksi = koleksi;
         this.tanggalPinjam = (tanggalPinjam == null) ? LocalDate.now() : tanggalPinjam;
 
-        koleksi.setTersedia(false);
+        koleksi.setStok(koleksi.getStok() - 1);
         anggota.tambahRiwayat(this);
     }
 
@@ -32,7 +32,7 @@ public class Peminjaman implements Identifiable {
         if (t.isBefore(tanggalPinjam))
             throw new IllegalArgumentException("Tanggal kembali tidak boleh sebelum tanggal pinjam.");
         this.tanggalKembali = t;
-        koleksi.setTersedia(true);
+        koleksi.setStok(koleksi.getStok() + 1);
     }
 
     public LocalDate getJatuhTempo() { return tanggalPinjam.plusDays(koleksi.getLamaPinjam()); }

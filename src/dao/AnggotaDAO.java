@@ -8,6 +8,15 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class AnggotaDAO {
+
+    public int idBerikutnya() throws SQLException {
+        try (Connection conn = KoneksiDatabase.getConnection();
+             Statement st = conn.createStatement();
+             ResultSet rs = st.executeQuery("SELECT COALESCE(MAX(id), 0) + 1 FROM anggota")) {
+            rs.next();
+            return rs.getInt(1);
+        }
+    }
     
     public void tambahAnggota(Anggota a, String kategori) throws SQLException {
         String sql = "INSERT INTO anggota (id, nama, nim, kategori, prodi, gender, tanggal_daftar, aktif) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";

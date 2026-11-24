@@ -9,8 +9,34 @@ import java.util.List;
 
 public class KoleksiDAO {
 
+    /** Membuat kolom stok di tabel koleksi bila belum ada (aman dipanggil berulang). */
+    public static void pastikanKolomStok() {
+        String cek = "SELECT 1 FROM information_schema.columns WHERE table_name = 'koleksi' AND column_name = 'stok'";
+        try (Connection conn = KoneksiDatabase.getConnection();
+             Statement st = conn.createStatement()) {
+            boolean sudahAda;
+            try (ResultSet rs = st.executeQuery(cek)) { sudahAda = rs.next(); }
+            if (!sudahAda) {
+                st.executeUpdate("ALTER TABLE koleksi ADD COLUMN stok integer NOT NULL DEFAULT 1");
+                // koleksi yang sedang dipinjam sebelum migrasi = stok 0
+                st.executeUpdate("UPDATE koleksi SET stok = CASE WHEN tersedia THEN 1 ELSE 0 END");
+            }
+        } catch (SQLException e) {
+            System.err.println("Gagal memastikan kolom stok: " + e.getMessage());
+        }
+    }
+
+    public int idBerikutnya() throws SQLException {
+        try (Connection conn = KoneksiDatabase.getConnection();
+             Statement st = conn.createStatement();
+             ResultSet rs = st.executeQuery("SELECT COALESCE(MAX(id), 0) + 1 FROM koleksi")) {
+            rs.next();
+            return rs.getInt(1);
+        }
+    }
+
     public void tambahKoleksi(Koleksi k) throws SQLException {
-        String sql = "INSERT INTO koleksi (id, judul, pengarang, tahun, tanggal_masuk, jenis_koleksi, isbn_vol_prodi, tersedia, referensi) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        String sql = "INSERT INTO koleksi (id, judul, pengarang, tahun, tanggal_masuk, jenis_koleksi, isbn_vol_prodi, tersedia, referensi, stok) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         try (Connection conn = KoneksiDatabase.getConnection(); 
              PreparedStatement ps = conn.prepareStatement(sql)) {
              
@@ -33,6 +59,7 @@ public class KoleksiDAO {
             
             ps.setBoolean(8, k.isTersedia());
             ps.setBoolean(9, k.isReferensi());
+            ps.setInt(10, k.getStok());
             
             ps.executeUpdate();
         }
@@ -54,7 +81,7 @@ public class KoleksiDAO {
     }
 
     public void ubahKoleksi(Koleksi k) throws SQLException {
-        String sql = "UPDATE koleksi SET judul = ?, pengarang = ?, tahun = ?, jenis_koleksi = ?, isbn_vol_prodi = ?, referensi = ? WHERE id = ?";
+        String sql = "UPDATE koleksi SET judul = ?, pengarang = ?, tahun = ?, jenis_koleksi = ?, isbn_vol_prodi = ?, referensi = ?, stok = ?, tersedia = ? WHERE id = ?";
         try (Connection conn = KoneksiDatabase.getConnection(); 
              PreparedStatement ps = conn.prepareStatement(sql)) {
              
@@ -74,9 +101,11 @@ public class KoleksiDAO {
             }
             
             ps.setBoolean(6, k.isReferensi());
+            ps.setInt(7, k.getStok());
+            ps.setBoolean(8, k.getStok() > 0);
             
             // Kunci utama (WHERE id = ?)
-            ps.setInt(7, k.getId());
+            ps.setInt(9, k.getId());
             
             ps.executeUpdate();
         }
@@ -114,7 +143,7 @@ public class KoleksiDAO {
             obj = new Skripsi(id, judul, pengarang, tahun, tanggalMasuk, atributKhusus);
         }
         
-        obj.setTersedia(rs.getBoolean("tersedia"));
+        obj.setStok(rs.getInt("stok"));
         obj.setReferensi(rs.getBoolean("referensi"));
         
         return obj;

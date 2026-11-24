@@ -77,6 +77,7 @@ public class PanelKoleksi extends JPanel {
         gbc.fill = GridBagConstraints.HORIZONTAL;
 
         txtIdKoleksi = new JTextField(12);
+        txtIdKoleksi.setEditable(false); // ID dibuat otomatis
         cmbJenisKoleksi = new JComboBox<>(new String[]{"Buku", "Jurnal", "Skripsi"});
         txtJudul = new JTextField(20);
         txtPenulis = new JTextField(20);
@@ -100,7 +101,7 @@ public class PanelKoleksi extends JPanel {
         tambahBarisForm(panelForm, gbc, 1, 0, "Judul Koleksi:", txtJudul);
         tambahBarisForm(panelForm, gbc, 1, 2, "Penulis / Pengarang:", txtPenulis);
         tambahBarisForm(panelForm, gbc, 2, 0, "Tahun Terbit:", spnTahunTerbit);
-        tambahBarisForm(panelForm, gbc, 2, 2, "Jumlah Stok:", spnStok);
+        tambahBarisForm(panelForm, gbc, 2, 2, "Stok Tersedia:", spnStok);
 
         gbc.gridx = 0;
         gbc.gridy = 3;
@@ -160,7 +161,7 @@ public class PanelKoleksi extends JPanel {
 
         String[] kolom = {
                 "ID Koleksi", "Jenis", "Judul Koleksi", "Penulis",
-                "Tahun", "Stok", "Status", "Detail Spesifik"
+                "Tahun", "Stok", "Status", "Detail Spesifik", "Referensi"
         };
         modelTabel = new DefaultTableModel(kolom, 0) {
             private static final long serialVersionUID = 1L;
@@ -226,7 +227,7 @@ public class PanelKoleksi extends JPanel {
 
     public void bersihkanForm() {
         txtIdKoleksi.setText("");
-        txtIdKoleksi.setEditable(true);
+        txtIdKoleksi.setEditable(false);
         cmbJenisKoleksi.setSelectedIndex(0);
         txtJudul.setText("");
         txtPenulis.setText("");
